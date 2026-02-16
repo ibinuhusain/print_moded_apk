@@ -1,50 +1,38 @@
 ```
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-*.class
-*.exe
-*.dll
-*.so
-*.a
-*.out
-
 # Dependencies
 node_modules/
-venv/
-.venv/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Android build files
+capacitor-app/android/app/build/
+capacitor-app/android/.gradle/
+capacitor-app/android/app/.cxx/
+capacitor-app/android/app/.externalNativeBuild/
+
+# Capacitor
+capacitor-app/dist/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Environment files
 .env
 .env.local
 .env.*
 
-# Logs and temp files
-*.log
-*.tmp
+# IDE files
+.vscode/
+.idea/
 *.swp
 *.swo
 
-# Editors
-.vscode/
-.idea/
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Build directories
-dist/
-build/
-target/
-.gradle/
-
-# Python caches
-.mypy_cache/
-.pytest_cache/
-
-# System files
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -67,4 +55,19 @@ Thumbs.db
 *.Z
 *.lz
 *.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+# PHP session files
+*.sess
+
+# Uploaded files (if not meant to be tracked)
+www/uploads/*
+!www/uploads/.gitkeep
+
+# Cache directories
+.cache/
+*.cache
 ```
