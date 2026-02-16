@@ -175,6 +175,7 @@ exit;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $no_assignments ? 'No Assignments' : 'Store Collection'; ?> - Apparel Collection</title>
+    <link rel="manifest" href="../manifest.json">
     <link rel="stylesheet" href="../css/mobile_agent.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
@@ -310,5 +311,21 @@ function printReceipt() {
             <span>Store</span>
         </a>
     </div>
+    
+    <script src="../js/app.js"></script>
+    <script>
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('../sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered successfully:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
