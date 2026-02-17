@@ -1,70 +1,81 @@
 ```
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-*.class
-*.exe
-*.dll
-*.so
-*.a
-*.out
-
 # Dependencies
 node_modules/
-venv/
-.venv/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Environment variables
 .env
 .env.local
 .env.*
 
-# Logs and temp files
-*.log
-*.tmp
+# IDE files
+.vscode/
+.idea/
 *.swp
 *.swo
 
-# Editors
-.vscode/
-.idea/
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Build directories
-dist/
-build/
-target/
-.gradle/
-
-# Python caches
-.mypy_cache/
-.pytest_cache/
-
-# System files
+# OS generated files
 .DS_Store
 Thumbs.db
 
-# Compressed files
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Capacitor/Cordova specific
+capacitor-app/node_modules/
+capacitor-app/dist/
+capacitor-app/build/
+*.apk
+*.aab
+*.ipa
+*.app
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Android build artifacts
+capacitor-app/android/build/
+capacitor-app/android/app/build/
+*.gradle/
+.gradle/
+
+# Python artifacts (if any Python files exist in project)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# PHP artifacts
+*.php.swp
+*.php.swo
+
+# Database related
+*.db
+*.sqlite
+*.sqlite3
+
+# Zip and archive files
 *.zip
-*.gz
 *.tar
+*.gz
 *.tgz
 *.bz2
 *.xz
 *.7z
 *.rar
 *.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
 ```

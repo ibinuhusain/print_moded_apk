@@ -1,0 +1,28 @@
+{
+  "name": "agent-capacitor-app",
+  "version": "1.0.0",
+  "description": "Capacitor wrapper for agent dashboard",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Build completed'",
+    "cap": "cap"
+  },
+  "dependencies": {
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/cli": "^5.0.0",
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/ios": "^5.0.0",
+    "@capacitor/camera": "^5.0.0",
+    "@capacitor/haptics": "^5.0.0",
+    "@capacitor/filesystem": "^5.0.0",
+    "@capacitor/status-bar": "^5.0.0",
+    "@capacitor/app": "^5.0.0",
+    "@capacitor/device": "^5.0.0",
+    "@capacitor/network": "^5.0.0",
+    "@capacitor/toast": "^5.0.0",
+    "@capacitor/push-notifications": "^5.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.0"
+  }
+}
