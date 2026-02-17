@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.example.thermalprinter" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Thermal Printer App</name>
+    <description>Application to take photos and print receipts using thermal POS printer via Bluetooth</description>
+    <author email="dev@example.com" href="http://example.com">Example Developer</author>
+    
+    <content src="thermal_printer_app.html" />
+    
+    <access origin="*" />
+    
+    <!-- Allow camera access -->
+    <allow-navigation href="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    
+    <!-- Platform-specific settings -->
+    <platform name="android">
+        <!-- Permissions for camera and Bluetooth -->
+        <uses-permission android:name="android.permission.CAMERA" />
+        <uses-permission android:name="android.permission.RECORD_AUDIO" />
+        <uses-permission android:name="android.permission.BLUETOOTH" />
+        <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+        <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+        <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+        
+        <!-- Feature requirements -->
+        <feature name="Camera">
+            <param name="android-package" value="org.apache.cordova.camera.CameraLauncher" />
+        </feature>
+    </platform>
+    
+    <platform name="ios">
+        <!-- iOS permissions -->
+        <preference name="CameraUsesGeolocation" value="false" />
+        <config-file platform="ios" target="*-Info.plist" parent="NSCameraUsageDescription">
+            <string>This app needs access to the camera to take photos for receipts</string>
+        </config-file>
+        <config-file platform="ios" target="*-Info.plist" parent="NSBluetoothAlwaysUsageDescription">
+            <string>This app needs Bluetooth to connect to thermal printers</string>
+        </config-file>
+    </platform>
+    
+    <!-- Core plugins -->
+    <plugin name="cordova-plugin-camera" spec="^6.0.0" />
+    <plugin name="cordova-plugin-bluetooth-serial" spec="^0.4.7" />
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.4" />
+</widget>
