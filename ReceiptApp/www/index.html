@@ -7,6 +7,14 @@
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="Receipt Capture App with Camera and Thermal Printer Support">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Receipt Capture">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192x192.png">
+    <link rel="apple-touch-icon" href="img/icon-192x192.png">
     <title>Receipt Capture App</title>
     <style>
         body {
@@ -128,37 +136,86 @@
             <strong>Debug Info:</strong><br>
             <span id="debugText">Ready to capture receipts...</span>
         </div>
+        
+        <div id="installBanner" class="hidden" style="margin-top: 20px; padding: 10px; background-color: #e3f2fd; border-radius: 5px; text-align: center;">
+            <p>Install this app on your device for better experience!</p>
+            <button id="installBtn" class="btn btn-install">Install App</button>
+        </div>
     </div>
 
     <script src="cordova.js"></script>
     <script src="js/api_bridge.js"></script>
     <script>
-        document.addEventListener('deviceready', onDeviceReady, false);
+        document.addEventListener("deviceready", onDeviceReady, false);
 
         let capturedImageURI = null;
         let isConnectedToPrinter = false;
         let selectedPrinterAddress = null;
+        let deferredPrompt;
+
+        // Listen for the beforeinstallprompt event
+        window.addEventListener("beforeinstallprompt", (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show the install button
+            document.getElementById("installBanner").classList.remove("hidden");
+        });
 
         function onDeviceReady() {
-            console.log('Cordova is ready!');
+            console.log("Cordova is ready!");
             initializeApp();
+            
+            // Check if running as PWA
+            if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) {
+                updateDebugInfo("App is running in standalone mode (PWA)");
+            } else {
+                updateDebugInfo("App is running in browser. Install for better experience.");
+            }
         }
 
         function initializeApp() {
             // Set up event listeners
-            document.getElementById('captureBtn').addEventListener('click', captureReceipt);
-            document.getElementById('connectPrinterBtn').addEventListener('click', connectToPrinter);
-            document.getElementById('printBtn').addEventListener('click', printReceipt);
-            
-            showMessage('App is ready. Click "Capture Receipt" to start.', 'success');
+            document.getElementById("captureBtn").addEventListener("click", captureReceipt);
+            document.getElementById("connectPrinterBtn").addEventListener("click", connectToPrinter);
+            document.getElementById("printBtn").addEventListener("click", printReceipt);
+            document.getElementById("installBtn").addEventListener("click", promptInstall);
+
+            showMessage("App is ready. Click \"Capture Receipt\" to start.", "success");
         }
+
+        function promptInstall() {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === "accepted") {
+                        console.log("User accepted the install prompt");
+                        showMessage("App installation started!", "success");
+                    } else {
+                        console.log("User dismissed the install prompt");
+                        showMessage("Installation was canceled", "warning");
+                    }
+                    
+                    // Reset the deferred prompt
+                    deferredPrompt = null;
+                    document.getElementById("installBanner").classList.add("hidden");
+                });
+            }
+        }
+
+</body>
+</html>
 
         function showMessage(message, type) {
             const statusElement = document.getElementById('statusMessage');
             statusElement.textContent = message;
             statusElement.className = `status ${type}`;
             statusElement.classList.remove('hidden');
-            
+
             // Auto-hide success messages after 3 seconds
             if (type === 'success') {
                 setTimeout(() => {
@@ -189,23 +246,23 @@
             navigator.camera.getPicture(
                 function(imageURI) {
                     capturedImageURI = imageURI;
-                    
+
                     // Display the captured image
                     const imageElement = document.getElementById('receiptImage');
                     imageElement.src = imageURI;
                     imageElement.classList.remove('hidden');
-                    
+
                     // Update UI
                     document.getElementById('captureBtn').textContent = '📸 Capture Another Receipt';
-                    
+
                     // Show success message with haptic feedback
                     showMessage('Receipt captured successfully!', 'success');
                     if (navigator.vibrate) {
                         navigator.vibrate([100, 50, 100]); // Triple vibration pattern
                     }
-                    
+
                     updateDebugInfo(`Receipt captured: ${imageURI}`);
-                    
+
                     // Automatically submit the receipt to the server
                     submitReceiptToServer(imageURI);
                 },
@@ -213,7 +270,7 @@
                     console.error('Camera error:', error);
                     showMessage('Failed to capture receipt: ' + error, 'error');
                     updateDebugInfo(`Camera error: ${error}`);
-                    
+
                     // Haptic feedback for error
                     if (navigator.vibrate) {
                         navigator.vibrate([100, 100, 100]); // Long vibration for error
@@ -222,12 +279,12 @@
                 options
             );
         }
-        
+
         async function submitReceiptToServer(imageURI) {
             try {
                 // Show submission status
                 showMessage('Uploading receipt to server...', 'warning');
-                
+
                 // Prepare receipt data
                 const receiptData = {
                     imageURI: imageURI,
@@ -238,32 +295,32 @@
                         uuid: device.uuid
                     }
                 };
-                
+
                 // Upload image to server
                 const uploadResult = await apiBridge.uploadImage(imageURI, `receipt_${Date.now()}.jpg`);
-                
+
                 // Update receipt data with upload result
                 receiptData.uploadId = uploadResult.id;
-                
+
                 // Submit receipt metadata to server
                 const submitResult = await apiBridge.submitReceipt(receiptData);
-                
+
                 // Show success message with haptic feedback
                 showMessage('Receipt uploaded and submitted successfully!', 'success');
                 if (navigator.vibrate) {
                     navigator.vibrate([100, 50, 100]); // Triple vibration pattern
                 }
-                
+
                 updateDebugInfo(`Receipt submitted to server with ID: ${submitResult.id}`);
             } catch (error) {
                 console.error('Error submitting receipt to server:', error);
                 showMessage('Failed to upload receipt to server: ' + error.message, 'error');
-                
+
                 // Haptic feedback for error
                 if (navigator.vibrate) {
                     navigator.vibrate([100, 100, 100]); // Long vibration for error
                 }
-                
+
                 updateDebugInfo(`Upload error: ${error.message}`);
             }
         }
@@ -318,21 +375,21 @@
                         const deviceElement = document.createElement('div');
                         deviceElement.className = 'printer-item';
                         deviceElement.textContent = `${device.name} (${device.address})`;
-                        
+
                         deviceElement.addEventListener('click', function() {
                             // Remove selection from other items
                             document.querySelectorAll('.printer-item').forEach(item => {
                                 item.classList.remove('selected');
                             });
-                            
+
                             // Select this item
                             this.classList.add('selected');
                             selectedPrinterAddress = device.address;
-                            
+
                             // Attempt to connect to this printer
                             connectToSpecificPrinter(device.address, device.name);
                         });
-                        
+
                         printerListElement.appendChild(deviceElement);
                     });
 
@@ -357,15 +414,15 @@
                 function() {
                     isConnectedToPrinter = true;
                     document.getElementById('printBtn').disabled = false;
-                    
+
                     // Haptic feedback for successful connection
                     if (navigator.vibrate) {
                         navigator.vibrate([100, 50, 100, 50, 100]); // Success pattern
                     }
-                    
+
                     showMessage(`Connected to ${name}!`, 'success');
                     updateDebugInfo(`Successfully connected to ${name} (${address})`);
-                    
+
                     // Hide printer list after successful connection
                     setTimeout(() => {
                         document.getElementById('printerList').classList.add('hidden');
@@ -375,7 +432,7 @@
                     console.error('Connection error:', error);
                     showMessage(`Failed to connect to ${name}: ${error}`, 'error');
                     updateDebugInfo(`Connection failed: ${error}`);
-                    
+
                     // Haptic feedback for error
                     if (navigator.vibrate) {
                         navigator.vibrate([100, 100, 100]);
@@ -427,10 +484,10 @@
                     if (navigator.vibrate) {
                         navigator.vibrate([100, 50, 100]); // Success pattern
                     }
-                    
+
                     showMessage('Receipt printed successfully!', 'success');
                     updateDebugInfo('Receipt sent to printer successfully');
-                    
+
                     // Also try to print the captured image if possible
                     printImage(capturedImageURI);
                 },
@@ -438,7 +495,7 @@
                     console.error('Print error:', error);
                     showMessage('Failed to print receipt: ' + error, 'error');
                     updateDebugInfo(`Print error: ${error}`);
-                    
+
                     // Haptic feedback for error
                     if (navigator.vibrate) {
                         navigator.vibrate([100, 100, 100]);
@@ -448,10 +505,10 @@
         }
 
         function printImage(imageURI) {
-            // This is a simplified approach - in real applications, 
+            // This is a simplified approach - in real applications,
             // you'd need to convert the image to a format the printer understands
             // For now, we'll just send a message indicating an image was captured
-            
+
             const imageData = [
                 '\x1B\x61\x00', // Left align
                 '[IMAGE PLACEHOLDER]\n',
