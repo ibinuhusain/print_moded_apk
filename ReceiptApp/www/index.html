@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="Receipt Capture App with Camera and Thermal Printer Support">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Receipt Capture">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192x192.png">
+    <link rel="apple-touch-icon" href="img/icon-192x192.png">
+    <title>Receipt Capture App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .btn-print {
+            background-color: #2196F3;
+        }
+        .btn-print:hover {
+            background-color: #1976D2;
+        }
+        .btn-connect {
+            background-color: #FF9800;
+        }
+        .btn-connect:hover {
+            background-color: #F57C00;
+        }
+        .receipt-image {
+            width: 100%;
+            max-width: 300px;
+            margin: 20px auto;
+            display: block;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .hidden {
+            display: none;
+        }
+        .printer-list {
+            margin: 10px 0;
+        }
+        .printer-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .printer-item:hover {
+            background-color: #f0f0f0;
+        }
+        .printer-item.selected {
+            background-color: #e3f2fd;
+            border-color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Receipt Capture App</h1>
+        
+        <div id="statusMessage" class="status hidden"></div>
+        
+        <button id="captureBtn" class="btn">📸 Capture Receipt</button>
+        <img id="receiptImage" class="receipt-image hidden" alt="Captured receipt">
+        
+        <button id="connectPrinterBtn" class="btn btn-connect">🖨️ Connect to Printer</button>
+        <div id="printerList" class="printer-list hidden"></div>
+        <button id="printBtn" class="btn btn-print" disabled>🖨️ Print Receipt</button>
+        
+        <div id="debugInfo" style="margin-top: 20px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; font-size: 12px;">
+            <strong>Debug Info:</strong><br>
+            <span id="debugText">Ready to capture receipts...</span>
+        </div>
+        
+        <div id="installBanner" class="hidden" style="margin-top: 20px; padding: 10px; background-color: #e3f2fd; border-radius: 5px; text-align: center;">
+            <p>Install this app on your device for better experience!</p>
+            <button id="installBtn" class="btn btn-install">Install App</button>
+        </div>
+    </div>
+
+    <script src="cordova.js"></script>
+    <script src="js/api_bridge.js"></script>
+    <script>
+        document.addEventListener("deviceready", onDeviceReady, false);
+
+        let capturedImageURI = null;
+        let isConnectedToPrinter = false;
+        let selectedPrinterAddress = null;
+        let deferredPrompt;
+
+        // Listen for the beforeinstallprompt event
+        window.addEventListener("beforeinstallprompt", (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show the install button
+            document.getElementById("installBanner").classList.remove("hidden");
+        });
+
+        function onDeviceReady() {
+            console.log("Cordova is ready!");
+            initializeApp();
+            
+            // Check if running as PWA
+            if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) {
+                updateDebugInfo("App is running in standalone mode (PWA)");
+            } else {
+                updateDebugInfo("App is running in browser. Install for better experience.");
+            }
+        }
+
+        function initializeApp() {
+            // Set up event listeners
+            document.getElementById("captureBtn").addEventListener("click", captureReceipt);
+            document.getElementById("connectPrinterBtn").addEventListener("click", connectToPrinter);
+            document.getElementById("printBtn").addEventListener("click", printReceipt);
+            document.getElementById("installBtn").addEventListener("click", promptInstall);
+
+            showMessage("App is ready. Click \"Capture Receipt\" to start.", "success");
+        }
+
+        function promptInstall() {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === "accepted") {
+                        console.log("User accepted the install prompt");
+                        showMessage("App installation started!", "success");
+                    } else {
+                        console.log("User dismissed the install prompt");
+                        showMessage("Installation was canceled", "warning");
+                    }
+                    
+                    // Reset the deferred prompt
+                    deferredPrompt = null;
+                    document.getElementById("installBanner").classList.add("hidden");
+                });
+            }
+        }
+
+</body>
+</html>
+
+        function showMessage(message, type) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+            statusElement.classList.remove('hidden');
+
+            // Auto-hide success messages after 3 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusElement.classList.add('hidden');
+                }, 3000);
+            }
+        }
+
+        function captureReceipt() {
+            // Vibrate to indicate action
+            if (navigator.vibrate) {
+                navigator.vibrate(100); // Vibrate for 100ms
+            }
+
+            // Show status
+            showMessage('Opening camera...', 'warning');
+            updateDebugInfo('Attempting to open camera...');
+
+            const options = {
+                quality: 50,
+                destinationType: Camera.DestinationType.FILE_URI,
+                sourceType: Camera.PictureSourceType.CAMERA,
+                encodingType: Camera.EncodingType.JPEG,
+                mediaType: Camera.MediaType.PICTURE,
+                saveToPhotoAlbum: true
+            };
+
+            navigator.camera.getPicture(
+                function(imageURI) {
+                    capturedImageURI = imageURI;
+
+                    // Display the captured image
+                    const imageElement = document.getElementById('receiptImage');
+                    imageElement.src = imageURI;
+                    imageElement.classList.remove('hidden');
+
+                    // Update UI
+                    document.getElementById('captureBtn').textContent = '📸 Capture Another Receipt';
+
+                    // Show success message with haptic feedback
+                    showMessage('Receipt captured successfully!', 'success');
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 50, 100]); // Triple vibration pattern
+                    }
+
+                    updateDebugInfo(`Receipt captured: ${imageURI}`);
+
+                    // Automatically submit the receipt to the server
+                    submitReceiptToServer(imageURI);
+                },
+                function(error) {
+                    console.error('Camera error:', error);
+                    showMessage('Failed to capture receipt: ' + error, 'error');
+                    updateDebugInfo(`Camera error: ${error}`);
+
+                    // Haptic feedback for error
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 100, 100]); // Long vibration for error
+                    }
+                },
+                options
+            );
+        }
+
+        async function submitReceiptToServer(imageURI) {
+            try {
+                // Show submission status
+                showMessage('Uploading receipt to server...', 'warning');
+
+                // Prepare receipt data
+                const receiptData = {
+                    imageURI: imageURI,
+                    timestamp: new Date().toISOString(),
+                    deviceInfo: {
+                        platform: device.platform,
+                        model: device.model,
+                        uuid: device.uuid
+                    }
+                };
+
+                // Upload image to server
+                const uploadResult = await apiBridge.uploadImage(imageURI, `receipt_${Date.now()}.jpg`);
+
+                // Update receipt data with upload result
+                receiptData.uploadId = uploadResult.id;
+
+                // Submit receipt metadata to server
+                const submitResult = await apiBridge.submitReceipt(receiptData);
+
+                // Show success message with haptic feedback
+                showMessage('Receipt uploaded and submitted successfully!', 'success');
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 50, 100]); // Triple vibration pattern
+                }
+
+                updateDebugInfo(`Receipt submitted to server with ID: ${submitResult.id}`);
+            } catch (error) {
+                console.error('Error submitting receipt to server:', error);
+                showMessage('Failed to upload receipt to server: ' + error.message, 'error');
+
+                // Haptic feedback for error
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 100, 100]); // Long vibration for error
+                }
+
+                updateDebugInfo(`Upload error: ${error.message}`);
+            }
+        }
+
+        function connectToPrinter() {
+            // Vibrate to indicate action
+            if (navigator.vibrate) {
+                navigator.vibrate(100);
+            }
+
+            showMessage('Searching for Bluetooth printers...', 'warning');
+            updateDebugInfo('Searching for Bluetooth devices...');
+
+            // First ensure Bluetooth is enabled
+            bluetoothSerial.isEnabled(
+                function() {
+                    // Bluetooth is enabled, now list devices
+                    listBluetoothDevices();
+                },
+                function() {
+                    // Bluetooth is not enabled, ask to enable it
+                    bluetoothSerial.enable(
+                        function() {
+                            // Successfully enabled, now list devices
+                            listBluetoothDevices();
+                        },
+                        function() {
+                            // Failed to enable Bluetooth
+                            showMessage('Failed to enable Bluetooth', 'error');
+                            updateDebugInfo('Failed to enable Bluetooth');
+                        }
+                    );
+                }
+            );
+        }
+
+        function listBluetoothDevices() {
+            const printerListElement = document.getElementById('printerList');
+            printerListElement.innerHTML = '';
+            printerListElement.classList.remove('hidden');
+
+            bluetoothSerial.list(
+                function(devices) {
+                    if (devices.length === 0) {
+                        showMessage('No Bluetooth devices found', 'error');
+                        updateDebugInfo('No Bluetooth devices found');
+                        printerListElement.classList.add('hidden');
+                        return;
+                    }
+
+                    devices.forEach(function(device, index) {
+                        const deviceElement = document.createElement('div');
+                        deviceElement.className = 'printer-item';
+                        deviceElement.textContent = `${device.name} (${device.address})`;
+
+                        deviceElement.addEventListener('click', function() {
+                            // Remove selection from other items
+                            document.querySelectorAll('.printer-item').forEach(item => {
+                                item.classList.remove('selected');
+                            });
+
+                            // Select this item
+                            this.classList.add('selected');
+                            selectedPrinterAddress = device.address;
+
+                            // Attempt to connect to this printer
+                            connectToSpecificPrinter(device.address, device.name);
+                        });
+
+                        printerListElement.appendChild(deviceElement);
+                    });
+
+                    showMessage('Select a printer from the list', 'warning');
+                    updateDebugInfo(`Found ${devices.length} Bluetooth devices`);
+                },
+                function(error) {
+                    console.error('Error listing devices:', error);
+                    showMessage('Error listing Bluetooth devices: ' + error, 'error');
+                    updateDebugInfo(`Error listing devices: ${error}`);
+                    printerListElement.classList.add('hidden');
+                }
+            );
+        }
+
+        function connectToSpecificPrinter(address, name) {
+            showMessage(`Connecting to ${name}...`, 'warning');
+            updateDebugInfo(`Connecting to ${name} (${address})...`);
+
+            bluetoothSerial.connect(
+                address,
+                function() {
+                    isConnectedToPrinter = true;
+                    document.getElementById('printBtn').disabled = false;
+
+                    // Haptic feedback for successful connection
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 50, 100, 50, 100]); // Success pattern
+                    }
+
+                    showMessage(`Connected to ${name}!`, 'success');
+                    updateDebugInfo(`Successfully connected to ${name} (${address})`);
+
+                    // Hide printer list after successful connection
+                    setTimeout(() => {
+                        document.getElementById('printerList').classList.add('hidden');
+                    }, 2000);
+                },
+                function(error) {
+                    console.error('Connection error:', error);
+                    showMessage(`Failed to connect to ${name}: ${error}`, 'error');
+                    updateDebugInfo(`Connection failed: ${error}`);
+
+                    // Haptic feedback for error
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 100, 100]);
+                    }
+                }
+            );
+        }
+
+        function printReceipt() {
+            if (!capturedImageURI) {
+                showMessage('Please capture a receipt first', 'error');
+                return;
+            }
+
+            if (!isConnectedToPrinter) {
+                showMessage('Please connect to a printer first', 'error');
+                return;
+            }
+
+            // Vibrate to indicate action
+            if (navigator.vibrate) {
+                navigator.vibrate(100);
+            }
+
+            showMessage('Printing receipt...', 'warning');
+            updateDebugInfo('Starting to print receipt...');
+
+            // Create a simple receipt format
+            const receiptData = [
+                '\x1B\x40', // Initialize printer
+                '\x1B\x61\x01', // Center align
+                'RECEIPT CAPTURE APP\n',
+                '------------------------\n',
+                '\x1B\x61\x00', // Left align
+                `Date: ${new Date().toLocaleString()}\n`,
+                'Item: Receipt Processing\n',
+                'Status: Captured via mobile app\n',
+                '------------------------\n',
+                '\x1B\x61\x01', // Center align
+                'THANK YOU!\n',
+                '\x0A\x0A\x0A' // Add some spacing and cut
+            ].join('');
+
+            // Send data to printer
+            bluetoothSerial.write(
+                receiptData,
+                function() {
+                    // Haptic feedback for successful print
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 50, 100]); // Success pattern
+                    }
+
+                    showMessage('Receipt printed successfully!', 'success');
+                    updateDebugInfo('Receipt sent to printer successfully');
+
+                    // Also try to print the captured image if possible
+                    printImage(capturedImageURI);
+                },
+                function(error) {
+                    console.error('Print error:', error);
+                    showMessage('Failed to print receipt: ' + error, 'error');
+                    updateDebugInfo(`Print error: ${error}`);
+
+                    // Haptic feedback for error
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 100, 100]);
+                    }
+                }
+            );
+        }
+
+        function printImage(imageURI) {
+            // This is a simplified approach - in real applications,
+            // you'd need to convert the image to a format the printer understands
+            // For now, we'll just send a message indicating an image was captured
+
+            const imageData = [
+                '\x1B\x61\x00', // Left align
+                '[IMAGE PLACEHOLDER]\n',
+                'Receipt image captured\n',
+                'and associated with this record.\n',
+                '\x0A\x0A'
+            ].join('');
+
+            bluetoothSerial.write(
+                imageData,
+                function() {
+                    console.log('Image placeholder sent to printer');
+                },
+                function(error) {
+                    console.error('Error sending image placeholder:', error);
+                }
+            );
+        }
+
+        function updateDebugInfo(message) {
+            document.getElementById('debugText').textContent = message;
+        }
+
+        // Handle back button on Android
+        document.addEventListener('backbutton', function() {
+            // Prevent exiting the app immediately
+            if (confirm('Do you want to exit the app?')) {
+                navigator.app.exitApp();
+            }
+        }, false);
+    </script>
+</body>
+</html>
