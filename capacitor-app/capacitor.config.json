@@ -1,0 +1,19 @@
+{
+  "appId": "com.appraisal.collection",
+  "appName": "Apparel Collection Agent App",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "BluetoothSerial": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_CONNECT"
+      ]
+    }
+  }
+}
